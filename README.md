@@ -1,5 +1,5 @@
 # NNBob
-A little neural network I'm building from scratch to read single digit numbers from 28x28 images
+Meet Bob, a little neural network I'm building from scratch to read single digit numbers from 28x28 images
 
 Status: Training
 
