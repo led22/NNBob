@@ -5,4 +5,4 @@ Status: Training
 
 Observations:
 Might not be working yet
-If not, rewrite backward function
+If not, rewrite backpropagation function
