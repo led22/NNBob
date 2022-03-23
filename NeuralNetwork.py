@@ -106,45 +106,6 @@ class NeuralNetwork:
         self.layer2 = Sigmoid(np.matmul(self.weights2, self.layer1) + self.biases2)
         self.output = Sigmoid(np.matmul(self.weights3, self.layer2) + self.biases3)
     
-    def BackPropagate2(self):
-        dWeights1 = np.zeros((16,784))
-        dWeights2 = np.zeros((16,16))
-        dWeights3 = np.zeros((10,16))
-        
-        dBiases1 = np.zeros(16)
-        dBiases2 = np.zeros(16)
-        dBiases3 = np.zeros(10)
-        
-        p = 0.1
-        
-        for i in range(16):
-            for j in range(784):
-                for k in range(10):
-                    for l in range(16):
-                        dWeights1[i][j] += 2*(self.expectedOutput[k] - self.output[k])*SigmoidDerivative(np.dot(self.weights3[k,:], self.layer2) + self.biases3[k])*self.weights3[k,l]*SigmoidDerivative(np.dot(self.weights2[l,:], self.layer1) + self.biases2[l])*self.weights2[l,i]*SigmoidDerivative(np.dot(self.weights1[i,:], self.input) + self.biases1[i])*self.input[j]
-                        if j == 1:
-                            dBiases1[i] += 2*(self.expectedOutput[k] - self.output[k])*SigmoidDerivative(np.dot(self.weights3[k,:], self.layer2) + self.biases3[k])*self.weights3[k,l]*SigmoidDerivative(np.dot(self.weights2[l,:], self.layer1) + self.biases2[l])*self.weights2[l,i]*SigmoidDerivative(np.dot(self.weights1[i,:], self.input) + self.biases1[i])
-        
-        for i in range(16):
-            for j in range(16):
-                for k in range(10):
-                    dWeights2[i][j] += 2*(self.expectedOutput[k] - self.output[k])*SigmoidDerivative(np.dot(self.weights3[k,:], self.layer2) + self.biases3[k])*self.weights3[k,i]*SigmoidDerivative(np.dot(self.weights2[i,:], self.layer1) + self.biases2[i])*self.layer1[j]
-                    if j == 1:
-                        dBiases2[i] += 2*(self.expectedOutput[k] - self.output[k])*SigmoidDerivative(np.dot(self.weights3[k,:], self.layer2) + self.biases3[k])*self.weights3[k,i]*SigmoidDerivative(np.dot(self.weights2[i,:], self.layer1) + self.biases2[i])
-        
-        for i in range(10):
-            for j in range(16):
-                dWeights3[i][j] += 2*(self.expectedOutput[i] - self.output[i])*SigmoidDerivative(np.dot(self.weights3[i,:], self.layer2) + self.biases3[i])*self.layer2[j]
-            dBiases3[i] += 2*(self.expectedOutput[i] - self.output[i])*SigmoidDerivative(np.dot(self.weights3[i,:], self.layer2) + self.biases3[i])
-        
-        self.dWeights1 += p*dWeights1
-        self.dWeights2 += p*dWeights2
-        self.dWeights3 += p*dWeights3
-        
-        self.dBiases1 += p*dBiases1
-        self.dBiases2 += p*dBiases2
-        self.dBiases3 += p*dBiases3
-    
     def BackPropagate(self):
         dWeights1 = np.zeros((16,784))
         dWeights2 = np.zeros((16,16))
