@@ -15,8 +15,7 @@ def Sigmoid(x):
 def SigmoidDerivative(x):
     np.seterr(all='ignore')
 
-    if x < -500:
-        x = -500
+    x[x<-500] = -500
 
     return np.exp(-x)/(np.square(1 + np.exp(-x)))
 
@@ -24,7 +23,7 @@ class DataSet:
     def __init__(self):
         pass
     
-    def LoadData(self):
+    def LoadTrainData(self):
         X, y = loadlocal_mnist(
             images_path='/home/luis/Documents/NN/train-images.idx3-ubyte', 
             labels_path='/home/luis/Documents/NN/train-labels.idx1-ubyte')
@@ -32,10 +31,21 @@ class DataSet:
         self.images = X
         self.labels = y
 
+    def LoadTestData(self):
+        X, y = loadlocal_mnist(
+            images_path='/home/luis/Documents/NN/t10k-images.idx3-ubyte', 
+            labels_path='/home/luis/Documents/NN/t10k-labels.idx1-ubyte')
+        
+        self.images = X
+        self.labels = y
+
 class NeuralNetwork:
     def __init__(self):
         self.data = DataSet()
-        self.data.LoadData()
+        self.data.LoadTrainData()
+
+        self.testData = DataSet()
+        self.testData.LoadTestData()
 
         self.dWeights1 = np.zeros((16,784))
         self.dWeights2 = np.zeros((16,16))
@@ -96,7 +106,7 @@ class NeuralNetwork:
         self.layer2 = Sigmoid(np.matmul(self.weights2, self.layer1) + self.biases2)
         self.output = Sigmoid(np.matmul(self.weights3, self.layer2) + self.biases3)
     
-    def BackPropagate(self):
+    def BackPropagate2(self):
         dWeights1 = np.zeros((16,784))
         dWeights2 = np.zeros((16,16))
         dWeights3 = np.zeros((10,16))
@@ -135,26 +145,90 @@ class NeuralNetwork:
         self.dBiases2 += p*dBiases2
         self.dBiases3 += p*dBiases3
     
+    def BackPropagate(self):
+        dWeights1 = np.zeros((16,784))
+        dWeights2 = np.zeros((16,16))
+        dWeights3 = np.zeros((10,16))
+        
+        dBiases1 = np.zeros(16)
+        dBiases2 = np.zeros(16)
+        dBiases3 = np.zeros(10)
+
+        p = 0.01
+
+        z1 = np.matmul(self.weights1, self.input) + self.biases1
+        z2 = np.matmul(self.weights2, self.layer1) + self.biases2
+        z3 = np.matmul(self.weights3, self.layer2) + self.biases3
+        
+        dz3 = 2*np.multiply(self.output - self.expectedOutput, SigmoidDerivative(z3))
+        dz2 = np.multiply(SigmoidDerivative(z2), np.matmul(dz3, self.weights3))
+        dz1 = np.multiply(SigmoidDerivative(z1), np.matmul(dz2, self.weights2))
+        
+        dWeights3 = np.outer(dz3, self.layer2)
+        dWeights2 = np.outer(dz2, self.layer1)
+        dWeights1 = np.outer(dz1, self.input)
+        
+        dBiases3 = dz3
+        dBiases2 = dz2
+        dBiases1 = dz1
+        
+        self.dWeights1 += p*dWeights1
+        self.dWeights2 += p*dWeights2
+        self.dWeights3 += p*dWeights3
+        
+        self.dBiases1 += p*dBiases1
+        self.dBiases2 += p*dBiases2
+        self.dBiases3 += p*dBiases3
+
+    #corre dataset de teste para ver a taxa de sucesso
+    def TrueTest(self):
+        correct = 0
+        total = 0
+
+        #for n in range(1):
+        for n in range(10000):
+            self.input = self.testData.images[n].reshape(-1)
+
+            self.expectedOutput = np.zeros(10)
+            self.expectedOutput[self.testData.labels[n]] = 1
+
+            #plt.imshow(self.testData.images[n].reshape((28,28)))
+            #plt.show()
+            #print(self.testData.images[n])
+            self.FeedForward()
+
+            #print(np.argmax(self.output),self.testData.labels[n])
+            if np.argmax(self.output) == self.testData.labels[n]:
+                correct += 1
+                total += 1
+            else:
+                total += 1
+        
+        return 100*correct/total
+
+    #testa um input e faz backpropagation
     def Test(self, n):
-        self.input = self.data.images[n].reshape(-1)
+        self.input = self.data.images[n].reshape(-1)/255
+
         self.expectedOutput = np.zeros(10)
         self.expectedOutput[self.data.labels[n]] = 1
         
         self.FeedForward()
         self.BackPropagate()
     
+    #ciclo de aprendizagem: analiza 100 imagens de cada vez
     def Learn(self, n):
         for i in range(n):
-            for j in range(10):
-                self.Test(10*i + int(self.TestCounter) + j)
-                
-            self.weights1 += self.dWeights1
-            self.weights2 += self.dWeights2
-            self.weights3 += self.dWeights3
+            for j in range(100):
+                self.Test((int(self.TestCounter) + j)%60000)
+
+            self.weights1 -= self.dWeights1
+            self.weights2 -= self.dWeights2
+            self.weights3 -= self.dWeights3
             
-            self.biases1 += self.dBiases1
-            self.biases2 += self.dBiases2
-            self.biases3 += self.dBiases3
+            self.biases1 -= self.dBiases1
+            self.biases2 -= self.dBiases2
+            self.biases3 -= self.dBiases3
             
             self.dWeights1 = np.zeros((16,784))
             self.dWeights2 = np.zeros((16,16))
@@ -164,12 +238,13 @@ class NeuralNetwork:
             self.dBiases2 = np.zeros(16)
             self.dBiases3 = np.zeros(10)
             
-            self.TestCounter += 10
+            self.TestCounter += 100
             
             self.SaveWeights()
             
             print("Teste", i+1, "de", n, "completo")
-        
+
+    #tenta adivinhar uma imagem
     def Guess(self, n):
         self.input = self.data.images[n].reshape(-1)
         expectedOutput = self.data.labels[n]
@@ -268,14 +343,15 @@ def OpcaoAdivinhar():
 
     print("1 - Imagem aleatória")
     print("2 - Carregar imagem")
-    print("3 - Voltar")
+    print("3 - Avaliar rede")
+    print("4 - Voltar")
 
     option = int(input())
 
     if option == 1:
         os.system('cls' if os.name == 'nt' else 'clear')
 
-        Bob.Guess(np.random.randint(50000, 60000))
+        Bob.Guess(np.random.randint(0, 10000))
 
         print(Bob.output)
         input("\nENTER para continuar")
@@ -297,6 +373,16 @@ def OpcaoAdivinhar():
 
         OpcaoAdivinhar()
     elif option == 3:
+        os.system('cls' if os.name == 'nt' else 'clear')
+
+        p = Bob.TrueTest()
+        
+        print("O Bob tem uma taxa de sucesso de", p)
+        print("Burro do caralho")
+        input("\nENTER para continuar")
+
+        OpcaoAdivinhar()
+    elif option == 4:
         StartMenu()
     else:
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -316,11 +402,11 @@ def OpcaoBackup():
         if os.path.exists("NetDataBackup.txt"):
             os.remove("NetDataBackup.txt")
 
-        NetData = open("NetDataBackup.txt", "a")
+        NetData = open("NetDataBackup.txt", "w")
         
         NetData.write("#TestCounter\n")
         NetData.write(str(Bob.TestCounter))
-        NetData = open("NetData.txt", "ab")
+        NetData = open("NetDataBackup.txt", "ab")
         NetData.write(b"\n\n#W1\n")
         np.savetxt(NetData, Bob.weights1, fmt='%.5f')
         NetData.write(b"\n#W2\n")
@@ -346,14 +432,47 @@ def OpcaoBackup():
 
         StartMenu()
 
+def OpcaoVisualizar():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+    Bob = NeuralNetwork()
+    Bob.LoadWeights()
+
+    fig = plt.figure()
+    
+    for i in range(16):
+        fig.add_subplot(4, 4, i+1)
+        plt.imshow(Bob.weights1[i,:].reshape((28,28)))
+
+    plt.show()
+
+    fig = plt.figure()
+    
+    for i in range(16):
+        fig.add_subplot(4, 4, i+1)
+        plt.imshow(Bob.weights2[i,:].reshape((4,4)))
+
+    plt.show()
+
+    fig = plt.figure()
+    
+    for i in range(10):
+        fig.add_subplot(4, 4, i+1)
+        plt.imshow(Bob.weights3[i,:].reshape((4,4)))
+
+    plt.show()
+
+    StartMenu()
+
 def StartMenu():
     os.system('cls' if os.name == 'nt' else 'clear')
 
     print("1 - Nova Rede")
     print("2 - Treinar")
     print("3 - Adivinhar")
-    print("4 - Backup Data")
-    print("5 - Sair")
+    print("4 - Visualizar")
+    print("5 - Backup Data")
+    print("6 - Sair")
 
     option = int(input())
     
@@ -364,8 +483,10 @@ def StartMenu():
     elif option == 3:
         OpcaoAdivinhar()
     elif option == 4:
-        OpcaoBackup()
+        OpcaoVisualizar()
     elif option == 5:
+        OpcaoBackup()
+    elif option == 6:
         os.system('cls' if os.name == 'nt' else 'clear')
 
         return 0
@@ -378,3 +499,7 @@ def StartMenu():
         StartMenu()
 
 StartMenu()
+#Bob = NeuralNetwork()
+#Bob.CreateWeights()
+
+#Bob.Test(1)
